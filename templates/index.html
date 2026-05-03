@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SustainAI | Intelligent Bento Analytics</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #050505; --card: #121212; --border: #222; --accent: #2d6a4f; --text: #eee; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; }
+        
+        .sidebar { width: 240px; border-right: 1px solid var(--border); padding: 30px; display: flex; flex-direction: column; }
+        .logo { font-size: 1.2rem; font-weight: 600; color: #52b788; margin-bottom: 40px; }
+        
+        .main-workspace { flex: 1; padding: 30px; overflow-y: auto; }
+        .active-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 20px; height: 100%; }
+        
+        .bento-card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 25px; display: flex; flex-direction: column; transition: 0.3s; }
+        .bento-card:hover { border-color: var(--accent); }
+
+        .chat-tile { grid-column: 1 / 3; grid-row: 1 / 5; }
+        .score-tile { grid-column: 3 / 4; grid-row: 1 / 3; align-items: center; justify-content: center; }
+        .water-tile { grid-column: 4 / 5; grid-row: 1 / 2; }
+        .co2-tile { grid-column: 4 / 5; grid-row: 2 / 3; }
+        .notes-tile { 
+            grid-column: 3 / 5; 
+            grid-row: 3 / 5; 
+            overflow-y: auto; 
+            white-space: pre-wrap; /* Essential for Python line breaks */
+            font-size: 0.85rem;
+            color: #bbb;
+        }
+
+        #chatbox { flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .msg { padding: 12px; border-radius: 12px; max-width: 85%; font-size: 0.9rem; }
+        .bot { background: #1a1a1a; align-self: flex-start; }
+        .user { background: var(--accent); align-self: flex-end; }
+
+        .preview-box { display: none; width: 60px; height: 60px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--accent); overflow: hidden; }
+        .preview-box img { width: 100%; height: 100%; object-fit: cover; }
+
+        .input-area { display: flex; gap: 10px; background: #1a1a1a; padding: 10px; border-radius: 16px; border: 1px solid var(--border); }
+        input[type="text"] { flex: 1; background: transparent; border: none; color: white; outline: none; }
+        
+        .tile-head { font-size: 0.7rem; color: #555; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px; }
+        .big-val { font-size: 1.8rem; font-weight: 600; color: #52b788; }
+        .circle { width: 100px; height: 100px; border-radius: 50%; border: 6px solid #1a1a1a; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #52b788; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo">🌿 SustainAI</div>
+        <p style="font-size: 0.8rem; color: #666; margin-top: auto;">{{ name }}</p>
+        <a href="/logout" style="color:#ff4d4d; text-decoration: none; font-size: 0.8rem; margin-top: 10px;">Sign Out</a>
+    </nav>
+
+    <main class="main-workspace">
+        <div class="active-grid">
+            <div class="bento-card chat-tile">
+                <div class="tile-head">Intelligence Advisor</div>
+                <div id="chatbox">
+                    <div class="msg bot">Welcome, {{ name }}! Upload a photo of a garment or type a material name to see its impact.</div>
+                </div>
+                <div id="pBox" class="preview-box"><img id="pImg"></div>
+                <div class="input-area">
+                    <input type="file" id="fInp" style="display:none" onchange="preview()">
+                    <button onclick="document.getElementById('fInp').click()" style="background:none; border:none; cursor:pointer; font-size:1.2rem;">📷</button>
+                    <input type="text" id="uInp" placeholder="Ask about a fabric...">
+                    <button onclick="send()" style="background:#2d6a4f; color:white; border:none; padding:8px 15px; border-radius:10px; cursor:pointer;">Analyze</button>
+                </div>
+            </div>
+
+            <div class="bento-card score-tile">
+                <div class="tile-head">Eco Score</div>
+                <div class="circle" id="sVal">--</div>
+            </div>
+
+            <div class="bento-card water-tile">
+                <div class="tile-head">Water Usage</div>
+                <div class="big-val" id="wVal">--</div>
+            </div>
+
+            <div class="bento-card co2-tile">
+                <div class="tile-head">CO2 Footprint</div>
+                <div class="big-val" id="cVal">--</div>
+            </div>
+
+            <div class="bento-card notes-tile" id="nVal">
+                Detailed sustainability report will appear here after analysis...
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function preview() {
+            const file = document.getElementById('fInp').files[0];
+            if(file) {
+                document.getElementById('pBox').style.display = "block";
+                document.getElementById('pImg').src = URL.createObjectURL(file);
+            }
+        }
+
+        async function send() {
+            const text = document.getElementById('uInp').value;
+            const file = document.getElementById('fInp').files[0];
+            if(!text && !file) return;
+
+            const chatbox = document.getElementById('chatbox');
+            chatbox.innerHTML += `<div class="msg user">${text || "Analyzing Image..."}</div>`;
+            
+            const fd = new FormData();
+            fd.append('message', text);
+            if(file) fd.append('image', file);
+
+            // Clear inputs
+            document.getElementById('uInp').value = "";
+            document.getElementById('pBox').style.display = "none";
+
+            try {
+                const res = await fetch('/chat', { method: 'POST', body: fd });
+                const data = await res.json();
+                if(data.status === "success") {
+                    document.getElementById('sVal').innerText = data.score;
+                    document.getElementById('wVal').innerText = data.water;
+                    document.getElementById('cVal').innerText = data.co2;
+                    document.getElementById('nVal').innerText = data.notes;
+                    chatbox.innerHTML += `<div class="msg bot">Analysis Complete: This item is primarily <b>${data.material}</b>.</div>`;
+                } else {
+                    chatbox.innerHTML += `<div class="msg bot">${data.reply}</div>`;
+                }
+            } catch(e) {
+                chatbox.innerHTML += `<div class="msg bot">Error connecting to server.</div>`;
+            }
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+    </script>
+</body>
+</html>
