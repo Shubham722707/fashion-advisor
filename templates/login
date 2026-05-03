@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Green-Lense</title>
-    <!-- This MUST be here to load the dark theme -->
     <link rel="stylesheet" href="{{ url_for('static', filename='auth.css') }}">
 </head>
 <body>
