@@ -5,4 +5,4 @@ pandas
 sentence-transformers
 gunicorn
 google-generativeai
-Pillow  
+Pillow
